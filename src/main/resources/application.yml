@@ -1,0 +1,55 @@
+server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: chat-service
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3308/chat_service
+    username: service_user
+    password: service_user
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: 43acfcfb8b11b100f6fd429bfb255547
+            client-secret: jldkm9NwJQlaYSkz11zvSaMc8g10w3DG
+            scope:
+              - profile_nickname
+              - account_email
+              - name
+              - gender
+              - birthday
+              - birthyear
+              - phone_number
+            redirect-uri: "http://localhost:8080/login/oauth2/code/kakao"
+            client-name: kakao
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+          google:
+            client-id: 13078142441-ppbf9c5bor6mcg1a24fed6bs4iagsiur.apps.googleusercontent.com
+            client-secret: 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
+            scope:
+              - email
+              - profile
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
