@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.chatservice.mapper.MessageMapper">
+    <!--
+         CREATE TABLE message (
+           id BIGINT AUTO_INCREMENT PRIMARY KEY,
+           chatroom_id BIGINT NOT NULL,
+           member_id BIGINT NOT NULL,
+           text VARCHAR(500),
+           created_at DATETIME
+         );
+     -->
+
+    <!-- 1) existsNewMessage(Long id, LocalDateTime lastCheckedAt) -->
+    <select id="existsNewMessage" resultType="boolean">
+        SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
+        FROM message
+        WHERE chatroom_id = #{param1}
+          AND created_at  > #{param2}
+    </select>
+
+    <!-- 2) insertMessage(Message msg) -->
+    <insert id="insertMessage" parameterType="Message">
+        INSERT INTO message (chatroom_id, member_id, text, created_at)
+        VALUES (#{chatroomId}, #{memberId}, #{text}, #{createdAt})
+        <selectKey keyProperty="id" resultType="long" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+    </insert>
+
+    <!-- 3) findAllByChatroomId(Long chatroomId) -->
+    <select id="findAllByChatroomId" parameterType="long" resultType="Message">
+        SELECT id,
+               chatroom_id,
+               member_id,
+               text,
+               created_at
+        FROM message
+        WHERE chatroom_id = #{chatroomId}
+        ORDER BY created_at ASC
+    </select>
+</mapper>

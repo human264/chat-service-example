@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+    <!-- 전역 설정 -->
+    <settings>
+        <setting name="cacheEnabled" value="true"/>
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <setting name="aggressiveLazyLoading" value="false"/>
+        <setting name="multipleResultSetsEnabled" value="true"/>
+        <setting name="useColumnLabel" value="true"/>
+        <setting name="useGeneratedKeys" value="true"/>
+        <setting name="autoMappingBehavior" value="PARTIAL"/>
+        <setting name="defaultExecutorType" value="REUSE"/>
+        <setting name="jdbcTypeForNull" value="NULL"/>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+    </settings>
+
+    <!-- DTO 클래스들이 위치한 패키지를 명시 -->
+    <typeAliases>
+        <package name="com.example.chatservice.mapperVo"/>
+    </typeAliases>
+
+    <!-- 글로벌 오류 처리기 등록 -->
+<!--    <typeHandlers>-->
+<!--\-->
+
+<!--    </typeHandlers>-->
+
+    <!-- 매퍼 파일 위치 -->
+    <mappers>
+        <package name="com.example.chatservice.mapper"/>
+    </mappers>
+
+</configuration>
+<!--        &lt;!&ndash; Auth &ndash;&gt;-->
+<!--<mapper resource="mappers/auth/SimpleUserMapper.xml"/>-->
+<!--<mapper resource="mappers/auth/UserActivityMapper.xml"/>-->
+<!--<mapper resource="mappers/auth/UserLoginHistoryMapper.xml"/>-->
+
+<!--        &lt;!&ndash; Event &ndash;&gt;-->
+<!--<mapper resource="mappers/event/EventPlaceMenuMapper.xml"/>-->
+<!--<mapper resource="mappers/event/EventPlaceActMapper.xml"/>-->

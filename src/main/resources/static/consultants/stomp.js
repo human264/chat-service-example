@@ -1,60 +1,43 @@
 // ----------------------------------------------------
-// 1) Declare subscription in the global scope
+// 1) 전역 변수
 // ----------------------------------------------------
 let subscription = null;
-
-// ----------------------------------------------------
-// 2) Create the Stomp client
-// ----------------------------------------------------
 const stompClient = new StompJs.Client({
     brokerURL: 'ws://localhost:8080/stomp/chats'
 });
 
-// Called when STOMP is connected
+// ----------------------------------------------------
+// 2) STOMP Client 설정
+// ----------------------------------------------------
 stompClient.onConnect = (frame) => {
     setConnected(true);
     showChatrooms(0);
+    // 상담사 전용으로 모든 chatroom update를 수신
     stompClient.subscribe('/sub/chats/updates', (chatMessage) => {
-        toggleNewMessageIcon(JSON.parse(chatMessage.body).id, true);
-        updateMemberCount(JSON.parse(chatMessage.body));
+        const chatObj = JSON.parse(chatMessage.body);
+        toggleNewMessageIcon(chatObj.id, true);
+        updateMemberCount(chatObj);
     });
     console.log('Connected: ' + frame);
 };
 
-function updateMemberCount(chatroom) {
-    $('#memberCount_' + chatroom.id).html(chatroom.memberCount);
-
-}
-
-function toggleNewMessageIcon(chatroomId, toggle) {
-    if (chatroomId === $("#chatroom-id").val()) {
-        return;
-    }
-    if (toggle) {
-        $("#new_" + chatroomId).show();
-    } else {
-        $("#new_" + chatroomId).hide();
-    }
-}
-
-// Error handlers
 stompClient.onWebSocketError = (error) => {
     console.error('Error with websocket', error);
 };
-
 stompClient.onStompError = (frame) => {
     console.error('Broker reported error: ' + frame.headers['message']);
     console.error('Additional details: ' + frame.body);
 };
 
-// Enable/disable UI elements based on connection state
+// ----------------------------------------------------
+// 3) 버튼/요소 제어
+// ----------------------------------------------------
 function setConnected(connected) {
     $("#connect").prop("disabled", connected);
     $("#disconnect").prop("disabled", !connected);
     $("#create").prop("disabled", !connected);
 }
 
-// STOMP connect/disconnect
 function connect() {
     stompClient.activate();
 }
@@ -65,7 +48,9 @@ function disconnect() {
     console.log("Disconnected");
 }
 
-// Send a chat message
+// ----------------------------------------------------
+// 4) 메시지 관련 함수
+// ----------------------------------------------------
 function sendMessage() {
     let chatroomId = $("#chatroom-id").val();
     stompClient.publish({
@@ -77,75 +62,65 @@ function sendMessage() {
     $("#message").val("");
 }
 
-// Fetch and display messages from the server for this chatroom
 function showMessages(chatroomId) {
     $.ajax({
         type: 'GET',
         dataType: 'json',
         url: '/chats/' + chatroomId + '/message',
         success: function (data) {
-            console.log('data: ', data);
-            // 수정 부분: i < data.length
+            console.log('Messages data: ', data);
+            $("#messages").html("");
             for (let i = 0; i < data.length; i++) {
-                // 수정 부분: showMessages -> showMessage (단일 메시지 표시)
                 showMessage(data[i]);
             }
         },
-        error: function (request, status, error) {
-            console.log('request:', request);
-            console.log('error:', error);
+        error: function (req, status, err) {
+            console.log('Error showMessages:', err);
         }
     });
 }
 
-// Append incoming message to the chat area
 function showMessage(chatMessage) {
-    console.log("Received Message:", chatMessage);  // Debug log
     $("#messages").append(
-        "<tr><td>" + (chatMessage.sender || "Unknown Sender") + " : " + chatMessage.message + "</td></tr>"
+        "<tr><td>" + (chatMessage.senderName || "Unknown") + " : " + chatMessage.message + "</td></tr>"
     );
 }
 
-// Create a new chatroom
+// ----------------------------------------------------
+// 5) 채팅방 관련
+// ----------------------------------------------------
 function createChatroom() {
     $.ajax({
         type: 'POST',
         dataType: 'json',
         url: '/chats?title=' + $('#chatroom-title').val(),
         success: function (data) {
-            console.log('data:', data);
+            console.log('Created chatroom:', data);
             showChatrooms(0);
             enterChatrooms(data.id, true);
         },
-        error: function (request, status, error) {
-            console.log('request:', request);
-            console.log('error:', error);
+        error: function (req, status, err) {
+            console.log('Error createChatroom:', err);
         }
     });
 }
 
-// Fetch and display all chatrooms
 function showChatrooms(pageNumber) {
     $.ajax({
         type: 'GET',
         dataType: 'json',
         url: '/consultants/chats?sorts=id,desc&page=' + pageNumber,
         success: function (data) {
-            console.log('data:', data);
             renderChatrooms(data);
         },
-        error: function (request, status, error) {
-            console.log('request:', request);
-            console.log('error:', error);
+        error: function (req, status, err) {
+            console.log('Error showChatrooms:', err);
         }
     });
 }
 
-// Render chatrooms as clickable table rows
 function renderChatrooms(page) {
-
     let chatrooms = page.content;
-
     $("#chatroom-list").html("");
     for (let i = 0; i < chatrooms.length; i++) {
         $("#chatroom-list").append(
@@ -153,7 +128,6 @@ function renderChatrooms(page) {
             "<td>" + chatrooms[i].id + "</td>" +
             "<td>" + chatrooms[i].title + "<img src='new.png' id='new_" + chatrooms[i].id +
             "' style='display: " + getDisplayValue(chatrooms[i].hasNewMessage) + "'></td>" +
-            // 여기서 memberCount 셀을 제대로 열고 닫음
             "<td id='memberCount_" + chatrooms[i].id + "'>" + chatrooms[i].memberCount + "</td>" +
             "<td>" + chatrooms[i].createAt + "</td>" +
             "</tr>"
@@ -163,29 +137,58 @@ function renderChatrooms(page) {
     if (page.first) {
         $("#prev").prop("disabled", true);
     } else {
-        $("#prev").prop("disabled", false).click(() => showChatrooms(page.number - 1))
+        $("#prev").prop("disabled", false).off('click').on('click', () => showChatrooms(page.number - 1));
     }
 
     if (page.last) {
         $("#next").prop("disabled", true);
     } else {
-        $("#next").prop("disabled", false).click(() => showChatrooms(page.number + 1));
+        $("#next").prop("disabled", false).off('click').on('click', () => showChatrooms(page.number + 1));
     }
 }
 
 function getDisplayValue(hasNewMessage) {
-    if (hasNewMessage) {
-        return "inline";
-    }
-    return "none";
+    return hasNewMessage ? "inline" : "none";
 }
 
+function toggleNewMessageIcon(chatroomId, toggle) {
+    if (chatroomId == $("#chatroom-id").val()) {
+        return;
+    }
+    if (toggle) {
+        $("#new_" + chatroomId).show();
+    } else {
+        $("#new_" + chatroomId).hide();
+    }
+}
 
-// Enter a specific chatroom
+function updateMemberCount(chatroom) {
+    $('#memberCount_' + chatroom.id).html(chatroom.memberCount);
+}
+
+// ----------------------------------------------------
+// 6) 방 입장/퇴장
+// ----------------------------------------------------
+function joinChatroom(chatroomId) {
+    let currentChatroomId = $("#chatroom-id").val();
+    $.ajax({
+        type: 'POST',
+        dataType: 'json',
+        url: '/chats/' + chatroomId + (currentChatroomId ? "?currentChatroomId=" + currentChatroomId : ""),
+        success: function (data) {
+            console.log('joinChatroom:', data);
+            enterChatrooms(chatroomId, data);  // data == true|false
+        },
+        error: function (req, status, err) {
+            console.log('Error joinChatroom:', err);
+        }
+    });
+}
+
 function enterChatrooms(chatroomId, newMember) {
     $("#chatroom-id").val(chatroomId);
-    $("#messages").html("");  // 메시지 목록 초기화
-    showMessages(chatroomId); // chatroomId 넘겨서 메시지 가져오기
+    $("#messages").html("");
+    showMessages(chatroomId);
 
     $("#conversation").show();
     $("#send").prop("disabled", false);
@@ -193,17 +196,13 @@ function enterChatrooms(chatroomId, newMember) {
 
     toggleNewMessageIcon(chatroomId, false);
 
-    // Unsubscribe if already subscribed
     if (subscription != null) {
         subscription.unsubscribe();
     }
-
-    // Subscribe to this chatroom's channel
     subscription = stompClient.subscribe('/sub/chats/' + chatroomId, (chatMessage) => {
         showMessage(JSON.parse(chatMessage.body));
     });
 
-    // If new member, send a "joined" message
     if (newMember) {
         stompClient.publish({
             destination: "/pub/chats/" + chatroomId,
@@ -214,33 +213,6 @@ function enterChatrooms(chatroomId, newMember) {
     }
 }
 
-// Join a chatroom (call backend to register new membership)
-function joinChatroom(chatroomId) {
-    let currentChatroomId = $("#chatroom-id").val();
-
-    $.ajax({
-        type: 'POST',
-        dataType: 'json',
-        url: '/chats/' + chatroomId + getRequestParam(currentChatroomId),
-        success: function (data) {
-            console.log('data:', data);
-            enterChatrooms(chatroomId, data);
-        },
-        error: function (request, status, error) {
-            console.log('request:', request);
-            console.log('error:', error);
-        }
-    });
-}
-
-function getRequestParam(currentChatroomId) {
-    if (currentChatroomId == "") {
-        return "";
-    }
-    return "?currentChatroomId=" + currentChatroomId;
-}
-
-// Leave a chatroom
 function leaveChatroom() {
     let chatroomId = $("#chatroom-id").val();
     $.ajax({
@@ -248,18 +220,16 @@ function leaveChatroom() {
         dataType: 'json',
         url: '/chats/' + chatroomId,
         success: function (data) {
-            console.log('data:', data);
+            console.log('leaveChatroom:', data);
             showChatrooms(0);
             exitChatroom(chatroomId);
         },
-        error: function (request, status, error) {
-            console.log('request:', request);
-            console.log('error:', error);
+        error: function (req, status, err) {
+            console.log('Error leaveChatroom:', err);
         }
     });
 }
 
-// Clear out the chatroom UI
 function exitChatroom(chatroomId) {
     $("#chatroom-id").val("");
     $("#conversation").hide();
@@ -272,7 +242,9 @@ function exitChatroom(chatroomId) {
     }
 }
 
-// jQuery DOM ready
+// ----------------------------------------------------
+// 7) 페이지 로드 시 초기화
+// ----------------------------------------------------
 $(function () {
     $("form").on('submit', (e) => e.preventDefault());
     $("#connect").click(() => connect());

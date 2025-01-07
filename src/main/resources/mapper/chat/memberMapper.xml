@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.chatservice.mapper.MemberMapper">
+
+    <insert id="insertMember" parameterType="Member">
+        INSERT INTO member (email, nick_name, password, name, gender, phone_number, birth_day, role, profile_image_url)
+        VALUES (#{email}, #{nickName}, #{password}, #{name}, #{gender}, #{phoneNumber}, #{birthDay}, #{role}, #{profileImageUrl})
+    </insert>
+
+    <select id="findById" parameterType="long" resultType="Member">
+        SELECT * FROM member WHERE id = #{id}
+    </select>
+
+    <select id="findByEmail" parameterType="string" resultType="Member">
+        SELECT * FROM member WHERE email = #{email}
+    </select>
+
+    <select id="findByName" parameterType="string" resultType="Member">
+        SELECT * FROM member WHERE name = #{name}
+    </select>
+
+    <update id="updateMember" parameterType="Member">
+        UPDATE member
+        SET email = #{email},
+            nick_name = #{nickName},
+            password = #{password},
+            name = #{name},
+            gender = #{gender},
+            phone_number = #{phoneNumber},
+            birth_day = #{birthDay},
+            role = #{role},
+            profile_image_url = #{profileImageUrl}
+        WHERE id = #{id}
+    </update>
+
+    <select id="findAll" resultType="Member">
+        SELECT * FROM member
+    </select>
+</mapper>

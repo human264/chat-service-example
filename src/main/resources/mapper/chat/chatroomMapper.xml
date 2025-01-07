@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.chatservice.mapper.ChatroomMapper">
+
+    <insert id="insertChatroom" parameterType="com.example.chatservice.mapperVo.Chatroom">
+        INSERT INTO chatroom (title, created_at, has_new_message, type)
+        VALUES (#{title}, #{createdAt}, #{hasNewMessage}, #{type})
+        <selectKey keyProperty="id" resultType="long" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+    </insert>
+
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM chatroom WHERE id = #{id}
+    </delete>
+
+    <update id="updateChatroom" parameterType="com.example.chatservice.mapperVo.Chatroom">
+        UPDATE chatroom
+        SET title          = #{title},
+            created_at     = #{createdAt},
+            has_new_message= #{hasNewMessage},
+            type           = #{type}
+        WHERE id = #{id}
+    </update>
+
+    <select id="findAll" resultType="Chatroom">
+        SELECT * FROM chatroom
+    </select>
+    <select id="findChatroomById" resultType="com.example.chatservice.mapperVo.Chatroom">
+        SELECT * FROM chatroom WHERE id = #{id}
+    </select>
+</mapper>

@@ -1,7 +1,7 @@
 package com.example.chatservice.dtos;
 
-import com.example.chatservice.entities.Chatroom;
 import com.example.chatservice.enums.ChatroomType;
+import com.example.chatservice.mapperVo.Chatroom;
 
 import java.time.LocalDateTime;
 public record ChatroomDto(

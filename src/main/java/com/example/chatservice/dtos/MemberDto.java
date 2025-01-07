@@ -1,7 +1,7 @@
 package com.example.chatservice.dtos;
 
-import com.example.chatservice.entities.Member;
 import com.example.chatservice.enums.Gender;
+import com.example.chatservice.mapperVo.Member;
 
 import java.time.LocalDate;
 

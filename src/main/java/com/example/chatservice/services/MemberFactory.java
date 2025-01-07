@@ -1,14 +1,11 @@
 package com.example.chatservice.services;
 
-import com.example.chatservice.entities.Member;
 import com.example.chatservice.enums.Gender;
-import com.example.chatservice.repository.MemberRepository;
+import com.example.chatservice.mapperVo.Member;
 import com.example.chatservice.services.enums.Role;
-import lombok.RequiredArgsConstructor;
 import org.hibernate.boot.model.naming.IllegalIdentifierException;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;

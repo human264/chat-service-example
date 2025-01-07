@@ -2,40 +2,35 @@ package com.example.chatservice.services;
 
 
 import com.example.chatservice.dtos.ChatroomDto;
-import com.example.chatservice.entities.Chatroom;
-import com.example.chatservice.entities.Member;
-import com.example.chatservice.entities.MemberChatroomMapping;
-import com.example.chatservice.entities.Message;
 import com.example.chatservice.enums.ChatroomType;
-import com.example.chatservice.repository.ChatroomRepository;
-import com.example.chatservice.repository.MemberChatroomMappingRepository;
-import com.example.chatservice.repository.MemberRepository;
-import com.example.chatservice.repository.MessageRepository;
+import com.example.chatservice.mapper.ChatroomMapper;
 
+import com.example.chatservice.mapper.MemberChatroomMappingMapper;
+import com.example.chatservice.mapper.MessageMapper;
+import com.example.chatservice.mapperVo.Chatroom;
+import com.example.chatservice.mapperVo.Member;
+import com.example.chatservice.mapperVo.MemberChatroomMapping;
+import com.example.chatservice.mapperVo.Message;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class ChatService {
+    private final ChatroomMapper chatroomMapper;
+    private final MemberChatroomMappingMapper memberChatroomMappingMapper;
+    private final MessageMapper messageMapper;
 
-    private final MessageRepository messageRepository;
-    private final MemberRepository memberRepository;
-    private final ChatroomRepository chatroomRepository;
-    private final MemberChatroomMappingRepository memberChatroomMappingRepository;
-
-    /**
-     * 채팅방 생성
-     * 캐시 무효화 또는 갱신 로직을 넣을 수도 있음
-     */
     @Transactional
-    public Chatroom createChatroom(Member member, String title, ChatroomType type) {
+    public Chatroom createChatroom(Member creator, String title, ChatroomType type) {
         Chatroom chatroom = Chatroom.builder()
                 .title(title)
                 .createdAt(LocalDateTime.now())
@@ -43,189 +38,157 @@ public class ChatService {
                 .type(type)
                 .build();
 
-        chatroom = chatroomRepository.save(chatroom);
+        chatroomMapper.insertChatroom(chatroom);
+        // chatroom.getId()가 생성됨 (LAST_INSERT_ID)
 
-        MemberChatroomMapping creatorMapping = chatroom.addMember(member);
-
-        if (type == ChatroomType.ANONYMOUS) {
-            creatorMapping.setAliasName(generateAnonymousAlias());
-        }
-
-        memberChatroomMappingRepository.save(creatorMapping);
-
-        // 채팅방 목록 캐시에 영향이 있으므로,
-        // 필요하다면 @CacheEvict(value="chatroomList", key="#member.id") 등의 처리
-        return chatroom;
-    }
-
-    /**
-     * 1:1 채팅방 만들기
-     */
-    @Transactional
-    public Chatroom createOneToOneChat(Member memberA, Member memberB) {
-        Chatroom chatroom = Chatroom.builder()
-                .title("1:1 채팅")
-                .createdAt(LocalDateTime.now())
-                .hasNewMessage(false)
-                .type(ChatroomType.ONE_TO_ONE)
+        MemberChatroomMapping mapping = MemberChatroomMapping.builder()
+                .chatroomId(chatroom.getId())
+                .memberId(creator.getId())
                 .build();
 
-        chatroom = chatroomRepository.save(chatroom);
-
-        MemberChatroomMapping m1 = chatroom.addMember(memberA);
-        MemberChatroomMapping m2 = chatroom.addMember(memberB);
-
-        memberChatroomMappingRepository.save(m1);
-        memberChatroomMappingRepository.save(m2);
+        if (type == ChatroomType.ANONYMOUS) {
+            mapping.setAliasName(generateAnonymousAlias());
+        }
+        memberChatroomMappingMapper.insertMapping(mapping);
 
         return chatroom;
     }
 
-    /**
-     * 채팅방 참여
-     */
     @Transactional
-    public Boolean joinChatroom(Member member, Long newChatroomId, Long currentChatroomId) {
+    public boolean joinChatroom(Member member, Long newChatroomId, Long currentChatroomId) {
         if (currentChatroomId != null) {
             updateLastCheckedAt(member, currentChatroomId);
         }
 
-        if (memberChatroomMappingRepository.existsByMemberIdAndChatroomId(member.getId(), newChatroomId)) {
-            log.info("이미 참여한 채팅방입니다.");
+        boolean alreadyExists = memberChatroomMappingMapper
+                .existsByMemberIdAndChatroomId(member.getId(), newChatroomId);
+        if (alreadyExists) {
+            log.info("이미 참여한 채팅방");
             return false;
         }
-
-        Chatroom chatroom = chatroomRepository.findById(newChatroomId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다."));
+        // 방 정보 조회
+        Chatroom chatroom = chatroomMapper.findById(newChatroomId)
+                .orElseThrow(() -> new IllegalArgumentException("채팅방 없음"));
 
         MemberChatroomMapping mapping = MemberChatroomMapping.builder()
-                .member(member)
-                .chatroom(chatroom)
+                .memberId(member.getId())
+                .chatroomId(chatroom.getId())
                 .build();
 
         if (chatroom.getType() == ChatroomType.ANONYMOUS) {
             mapping.setAliasName(generateAnonymousAlias());
         }
+        memberChatroomMappingMapper.insertMapping(mapping);
 
-        memberChatroomMappingRepository.save(mapping);
         return true;
     }
 
-    /**
-     * 현재 채팅방의 읽음 시간 업데이트
-     */
     @Transactional
-    public void updateLastCheckedAt(Member member, Long currentChatroomId) {
-        MemberChatroomMapping mapping = memberChatroomMappingRepository
-                .findByMemberIdAndChatroomId(member.getId(), currentChatroomId)
-                .orElseThrow(() -> new IllegalArgumentException("현재 채팅방 참여정보가 없습니다."));
+    public void updateLastCheckedAt(Member member, Long chatroomId) {
+        MemberChatroomMapping mapping = memberChatroomMappingMapper
+                .findByMemberIdAndChatroomId(member.getId(), chatroomId)
+                .orElseThrow(() -> new IllegalArgumentException("매핑 정보가 없음"));
         mapping.updateLastCheckedAt();
-        memberChatroomMappingRepository.save(mapping);
+        memberChatroomMappingMapper.updateMapping(mapping);
     }
 
-    /**
-     * 채팅방 나가기
-     * 마지막 인원 나가면 방 삭제
-     */
     @Transactional
-    public Boolean leaveChatroom(Member member, Long chatroomId) {
-        if (!memberChatroomMappingRepository.existsByMemberIdAndChatroomId(member.getId(), chatroomId)) {
-            log.info("참여하지 않는 방입니다.");
+    public boolean leaveChatroom(Member member, Long chatroomId) {
+        boolean exists = memberChatroomMappingMapper
+                .existsByMemberIdAndChatroomId(member.getId(), chatroomId);
+        if (!exists) {
+            log.info("참여하지 않은 방");
             return false;
         }
+        // 방 정보
+        Chatroom chatroom = chatroomMapper.findById(chatroomId)
+                .orElseThrow(() -> new IllegalArgumentException("채팅방 없음"));
 
-        Chatroom chatroom = chatroomRepository.findById(chatroomId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다."));
-        chatroom.removeMember(member);
+        // 매핑 삭제
+        memberChatroomMappingMapper.deleteByMemberIdAndChatroomId(member.getId(), chatroomId);
 
-        if (chatroom.getMemberCount() == 0) {
-            chatroomRepository.delete(chatroom);
+        // 남은 사람이 0명이면 방 삭제
+        List<MemberChatroomMapping> remainList = memberChatroomMappingMapper.findAllByChatroomId(chatroomId);
+        if (remainList.isEmpty()) {
+            chatroomMapper.deleteById(chatroomId);
         }
+
         return true;
     }
 
     /**
-     * 유저가 참여 중인 모든 채팅방 (캐시 예시)
+     * 유저가 참여 중인 채팅방 리스트 (캐시)
      */
     @Transactional(readOnly = true)
     @Cacheable(value = "chatroomList", key = "#member.id")
     public List<Chatroom> getChatroomList(Member member) {
-        List<MemberChatroomMapping> mappingList =
-                memberChatroomMappingRepository.findAllByMemberId(member.getId());
+        // 모든 매핑 중 memberId가 일치하는 것 조회
+        List<MemberChatroomMapping> mappingList = memberChatroomMappingMapper.findAllByMemberId(member.getId());
 
-        return mappingList.stream().map(m -> {
-            Chatroom chatroom = m.getChatroom();
-            chatroom.setHasNewMessage(
-                    messageRepository.existsByChatroomIdAndCreatedAtAfter(
-                            chatroom.getId(),
-                            m.getLastCheckedAt()
-                    )
-            );
-            return chatroom;
-        }).toList();
+        // 각 mapping마다 Chatroom을 조회
+        List<Chatroom> results = new ArrayList<>();
+        for (MemberChatroomMapping m : mappingList) {
+            Chatroom c = chatroomMapper.findById(m.getChatroomId()).orElse(null);
+            if (c == null) continue;
+
+            // hasNewMessage 체크
+            Boolean existsNew = messageMapper.existsNewMessage(c.getId(), m.getLastCheckedAt());
+            c.setHasNewMessage(existsNew);
+
+            results.add(c);
+        }
+        return results;
     }
 
     /**
-     * 메시지 생성
+     * 메시지 저장
      */
     @Transactional
-    @CacheEvict(value = "messageList", key = "#chatroomId") // 메시지 변경 시 캐시 무효화
+    @CacheEvict(value = "messageList", key = "#chatroomId")
     public Message saveMessage(Member member, Long chatroomId, String text) {
-        Chatroom chatroom = chatroomRepository.findById(chatroomId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다."));
-
-        Message message = Message.builder()
+        Message msg = Message.builder()
+                .chatroomId(chatroomId)
+                .memberId(member.getId())
                 .text(text)
-                .member(member)
-                .chatroom(chatroom)
                 .createdAt(LocalDateTime.now())
                 .build();
-
-        return messageRepository.save(message);
+        messageMapper.insertMessage(msg);
+        return msg;
     }
 
     /**
-     * 메시지 목록 조회 (캐시)
-     * - 메시지가 많을 경우, 페이징(Offset, Limit) 또는 Cursor 방식 고려
+     * 메시지 목록 조회 (캐시 적용)
      */
     @Transactional(readOnly = true)
     @Cacheable(value = "messageList", key = "#chatroomId")
     public List<Message> getMessageList(Long chatroomId) {
-        return messageRepository.findAllByChatroomId(chatroomId);
+        return messageMapper.findAllByChatroomId(chatroomId);
     }
 
-    /**
-     * 채팅방 정보 조회
-     */
     @Transactional(readOnly = true)
     @Cacheable(value = "chatroomInfo", key = "#chatroomId")
     public ChatroomDto getChatroom(Long chatroomId) {
-        Chatroom chatroom = chatroomRepository.findById(chatroomId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다."));
-        return ChatroomDto.from(chatroom);
+        Chatroom c = chatroomMapper.findById(chatroomId)
+                .orElseThrow(() -> new IllegalArgumentException("방 없음"));
+        return ChatroomDto.from(c);
     }
 
-    /**
-     * 메시지를 읽은 사람 수 계산
-     */
     @Transactional(readOnly = true)
     public int getReadCount(Message message) {
-        Long chatroomId = message.getChatroom().getId();
-        List<MemberChatroomMapping> mappingList =
-                memberChatroomMappingRepository.findAllByChatroomId(chatroomId);
+        Long chatroomId = message.getChatroomId();
+        List<MemberChatroomMapping> list = memberChatroomMappingMapper.findAllByChatroomId(chatroomId);
 
-        int count = 0;
-        for (MemberChatroomMapping m : mappingList) {
-            if (m.getLastCheckedAt() != null &&
-                    m.getLastCheckedAt().isAfter(message.getCreatedAt())) {
-                count++;
+        int cnt = 0;
+        for (MemberChatroomMapping m : list) {
+            if (m.getLastCheckedAt() != null && m.getLastCheckedAt().isAfter(message.getCreatedAt())) {
+                cnt++;
             }
         }
-        return count;
+        return cnt;
     }
 
     private String generateAnonymousAlias() {
-        int randomNum = (int) (Math.random() * 9000) + 1000;
-        return "익명#" + randomNum;
+        int rand = (int)(Math.random() * 9000) + 1000;
+        return "익명#" + rand;
     }
 }

@@ -1,7 +1,6 @@
 package com.example.chatservice.vos;
 
-import com.example.chatservice.entities.Member;
-import lombok.AllArgsConstructor;
+import com.example.chatservice.mapperVo.Member;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

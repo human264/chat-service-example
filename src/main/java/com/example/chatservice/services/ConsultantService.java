@@ -2,10 +2,11 @@ package com.example.chatservice.services;
 
 import com.example.chatservice.dtos.ChatroomDto;
 import com.example.chatservice.dtos.MemberDto;
-import com.example.chatservice.entities.Chatroom;
-import com.example.chatservice.entities.Member;
-import com.example.chatservice.repository.ChatroomRepository;
-import com.example.chatservice.repository.MemberRepository;
+import com.example.chatservice.mapper.ChatroomMapper;
+import com.example.chatservice.mapper.MemberMapper;
+import com.example.chatservice.mapperVo.Chatroom;
+import com.example.chatservice.mapperVo.Member;
+
 import com.example.chatservice.services.enums.Role;
 import com.example.chatservice.vos.CustomerUserDetail;
 import lombok.RequiredArgsConstructor;
@@ -22,14 +23,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
 import java.util.List;
+
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class ConsultantService implements UserDetailsService {
 
-    private final ChatroomRepository chatroomRepository;
+    private final ChatroomMapper chatroomRepository;
     private final PasswordEncoder passwordEncoder;
-    private final MemberRepository memberRepository;
+    private final MemberMapper memberRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -49,14 +51,14 @@ public class ConsultantService implements UserDetailsService {
     @Transactional
     public MemberDto saveMember(MemberDto memberDto) {
         Member member = MemberDto.to(memberDto);
-        member.updatePassword(memberDto.password(), memberDto.confirmedPassword(), passwordEncoder);
-        member = memberRepository.save(member);
+        member.updatePassword(memberDto.password(), memberDto.confirmedPassword());
+        member = memberRepository.save(member); // <-- default method (insert or update)
         return MemberDto.from(member);
     }
 
     @Transactional(readOnly = true)
-    public Page<ChatroomDto> getChatroomPage(Pageable pageable) {
-        Page<Chatroom> chatroomPage = chatroomRepository.findAll(pageable);
-        return chatroomPage.map(ChatroomDto::from);
+    public List<ChatroomDto> getChatroomPage() {
+        List<Chatroom> chatroomPage = chatroomRepository.findAll();
+        return chatroomPage.stream().map(ChatroomDto::from).toList();
     }
 }
