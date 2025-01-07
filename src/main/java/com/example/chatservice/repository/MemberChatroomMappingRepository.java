@@ -8,14 +8,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MemberChatroomMappingRepository extends JpaRepository<MemberChatroomMapping, Long> {
-
     Boolean existsByMemberIdAndChatroomId(Long memberId, Long chatroomId);
-
     void deleteByMemberIdAndChatroomId(Long memberId, Long chatroomId);
-
     List<MemberChatroomMapping> findAllByMemberId(Long memberId);
-
-    Optional<MemberChatroomMapping> findByMemberIdAndChatroomId(Long id, Long currentChatroomId);
-
+    Optional<MemberChatroomMapping> findByMemberIdAndChatroomId(Long memberId, Long chatroomId);
     List<MemberChatroomMapping> findAllByChatroomId(Long chatroomId);
 }
+

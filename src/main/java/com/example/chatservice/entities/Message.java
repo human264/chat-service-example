@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-
 @Entity
 @Builder
 @NoArgsConstructor
@@ -15,9 +14,9 @@ import java.time.LocalDateTime;
 @Getter
 public class Message {
 
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "message_id")
-    @Id
     Long id;
 
     String text;
@@ -31,5 +30,4 @@ public class Message {
     Chatroom chatroom;
 
     LocalDateTime createdAt;
-
 }

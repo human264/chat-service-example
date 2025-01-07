@@ -46,23 +46,19 @@ public class StompChatController {
         ChatroomDto chatroomDto = chatService.getChatroom(chatroomId);
         messagingTemplate.convertAndSend("/sub/chats/updates", chatroomDto);
 
-        // 메시지 읽은 사람 수 계산
         int readCount = chatService.getReadCount(message);
-
-        // 익명/실명 분기는 Controller와 동일 로직
-        ChatroomType type = chatroomDto.type();
         String senderName = message.getMember().getNickName();
         String profileImageUrl = message.getMember().getProfileImageUrl();
 
-        if (type == ChatroomType.ANONYMOUS) {
-            // 메시지 작성자에 해당하는 mapping 조회
+        if (chatroomDto.type() == ChatroomType.ANONYMOUS) {
             MemberChatroomMapping mapping = message.getChatroom()
                     .getMemberChatroomMappingSet()
                     .stream()
                     .filter(m -> m.getMember().getId().equals(message.getMember().getId()))
-                    .findFirst().orElse(null);
+                    .findFirst()
+                    .orElse(null);
 
-            if (mapping != null) {
+            if (mapping != null && mapping.getAliasName() != null) {
                 senderName = mapping.getAliasName();
             }
             profileImageUrl = "/images/anonymous.png";

@@ -3,9 +3,7 @@ package com.example.chatservice.entities;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-@Setter
-@Entity
+import java.time.LocalDateTime;@Entity
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,10 +25,14 @@ public class MemberChatroomMapping {
 
     LocalDateTime lastCheckedAt;
 
-    // === 추가: 익명 채팅용 닉네임(별명) ===
+    // 익명 채팅 별명
     String aliasName;
 
     public void updateLastCheckedAt() {
         this.lastCheckedAt = LocalDateTime.now();
+    }
+
+    public void setAliasName(String aliasName) {
+        this.aliasName = aliasName;
     }
 }

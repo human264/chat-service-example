@@ -22,21 +22,17 @@ public class ChatController {
 
     private final ChatService chatService;
 
-    /**
-     * 채팅방 생성
-     */
+    // 채팅방 생성
     @PostMapping
     public ChatroomDto createChatroom(
             @AuthenticationPrincipal CustomOAuth2User user,
             @RequestParam String title,
-            @RequestParam(defaultValue = "MULTI") ChatroomType type // 디폴트로 일반 다대다
+            @RequestParam(defaultValue = "MULTI") ChatroomType type
     ) {
         return ChatroomDto.from(chatService.createChatroom(user.getMember(), title, type));
     }
 
-    /**
-     * 채팅방 참여
-     */
+    // 채팅방 참여
     @PostMapping("/{chatroomId}")
     public Boolean joinChatroom(@AuthenticationPrincipal CustomOAuth2User user,
                                 @PathVariable Long chatroomId,
@@ -44,62 +40,49 @@ public class ChatController {
         return chatService.joinChatroom(user.getMember(), chatroomId, currentChatroomId);
     }
 
-    /**
-     * 채팅방 나가기
-     */
+    // 채팅방 나가기
     @DeleteMapping("/{chatroomId}")
     public Boolean leaveChatroom(@AuthenticationPrincipal CustomOAuth2User user, @PathVariable Long chatroomId) {
         return chatService.leaveChatroom(user.getMember(), chatroomId);
     }
 
-    /**
-     * 채팅방 목록 조회
-     */
+    // 채팅방 목록 조회
     @GetMapping
     public List<ChatroomDto> getChatroomList(@AuthenticationPrincipal CustomOAuth2User user) {
         List<Chatroom> chatrooms = chatService.getChatroomList(user.getMember());
-        return chatrooms.stream().map(ChatroomDto::from).toList();
+        return chatrooms.stream()
+                .map(ChatroomDto::from)
+                .toList();
     }
 
-    /**
-     * 해당 채팅방의 메시지 목록 조회
-     */
+    // 특정 채팅방의 메시지 목록 조회 (익명 처리 포함)
     @GetMapping("/{chatroomId}/message")
-    public List<ChatMessages> getMessageList(@PathVariable Long chatroomId) {
+    public List<ChatMessages> getMessageList(@AuthenticationPrincipal CustomOAuth2User user,
+                                             @PathVariable Long chatroomId) {
         List<Message> messageList = chatService.getMessageList(chatroomId);
-
-        // 채팅방 타입 확인 (익명 방이면 aliasName 사용)
         ChatroomDto chatroomDto = chatService.getChatroom(chatroomId);
-        ChatroomType type = chatroomDto.type();
 
         return messageList.stream().map(message -> {
-            // 메시지를 읽은 사람 수
             int readCount = chatService.getReadCount(message);
 
-            // 익명 방일 경우, 해당 user의 aliasName 조회
-            MemberChatroomMapping mapping = null;
-            if (type == ChatroomType.ANONYMOUS) {
-                mapping = // 특정 member-chatroom 매핑 조회
-                        // (DB에서 findByMemberIdAndChatroomId 하거나,
-                        //  message.getChatroom().getMemberChatroomMappingSet()를 순회하여 찾음)
-                        message.getChatroom()
-                                .getMemberChatroomMappingSet()
-                                .stream()
-                                .filter(m -> m.getMember().getId().equals(message.getMember().getId()))
-                                .findFirst().orElse(null);
+            String senderName = message.getMember().getNickName();
+            String profileImageUrl = message.getMember().getProfileImageUrl();
+
+            if (chatroomDto.type() == ChatroomType.ANONYMOUS) {
+                // 익명 별칭
+                MemberChatroomMapping mapping = message.getChatroom()
+                        .getMemberChatroomMappingSet()
+                        .stream()
+                        .filter(m -> m.getMember().getId().equals(message.getMember().getId()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (mapping != null && mapping.getAliasName() != null) {
+                    senderName = mapping.getAliasName();
+                }
+                // 익명 이미지
+                profileImageUrl = "/images/anonymous.png";
             }
-
-            // 익명 방이면 aliasName, 아니면 실제 nickName
-            String senderName = (type == ChatroomType.ANONYMOUS && mapping != null)
-                    ? mapping.getAliasName()
-                    : message.getMember().getNickName();
-
-            // 익명 방이면 프로필 이미지를 숨긴다면 null,
-            // 또는 공통 이미지를 표시한다면 그 URL,
-            // 아니면 그대로 실제 프로필 URL을 노출
-            String profileImageUrl = (type == ChatroomType.ANONYMOUS)
-                    ? "/images/anonymous.png"   // 예시: 공통 익명 이미지
-                    : message.getMember().getProfileImageUrl();
 
             return new ChatMessages(
                     senderName,

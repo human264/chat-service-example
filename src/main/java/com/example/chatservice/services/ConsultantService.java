@@ -18,23 +18,25 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
 import java.util.List;
-
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class ConsultantService implements UserDetailsService {
+
     private final ChatroomRepository chatroomRepository;
     private final PasswordEncoder passwordEncoder;
     private final MemberRepository memberRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Member member = memberRepository.findByName(username).get();
+        Member member = memberRepository.findByName(username)
+                .orElseThrow(() -> new UsernameNotFoundException("해당 사용자가 없습니다."));
 
-        if(Role.fromCode(member.getRole()) != Role.CONSULTANT) {
+        if (Role.fromCode(member.getRole()) != Role.CONSULTANT) {
             try {
                 throw new AccessDeniedException("상담사가 아닙니다.");
             } catch (AccessDeniedException e) {
@@ -44,15 +46,15 @@ public class ConsultantService implements UserDetailsService {
         return new CustomerUserDetail(member, null);
     }
 
+    @Transactional
     public MemberDto saveMember(MemberDto memberDto) {
         Member member = MemberDto.to(memberDto);
         member.updatePassword(memberDto.password(), memberDto.confirmedPassword(), passwordEncoder);
-
         member = memberRepository.save(member);
-
         return MemberDto.from(member);
     }
 
+    @Transactional(readOnly = true)
     public Page<ChatroomDto> getChatroomPage(Pageable pageable) {
         Page<Chatroom> chatroomPage = chatroomRepository.findAll(pageable);
         return chatroomPage.map(ChatroomDto::from);

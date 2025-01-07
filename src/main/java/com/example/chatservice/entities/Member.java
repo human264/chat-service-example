@@ -9,8 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDate;
-@Getter
+import java.time.LocalDate;@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,7 +33,7 @@ public class Member {
     LocalDate birthDay;
     String role;
 
-    // === 추가: 프로필 이미지 URL (또는 경로) ===
+    // 프로필 이미지 (URL)
     String profileImageUrl;
 
     public void updatePassword(String password, String confirmedPassword, PasswordEncoder passwordEncoder) {
