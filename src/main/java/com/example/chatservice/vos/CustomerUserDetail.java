@@ -13,12 +13,9 @@ import java.util.Map;
 
 
 public class CustomerUserDetail extends CustomOAuth2User implements UserDetails {
-
-
     public CustomerUserDetail(Member member, Map<String, Object> attributeMap) {
         super(member, attributeMap);
     }
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(member.getRole()));

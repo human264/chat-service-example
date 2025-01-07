@@ -44,6 +44,4 @@ public class WebSocketChatHandler extends TextWebSocketHandler {
         log.info("{} disconnected", session.getId());
         this.webSocketSessionMap.remove(session.getId());
     }
-
-
 }

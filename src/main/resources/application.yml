@@ -11,9 +11,9 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3308/chat_service
-    username: service_user
-    password: service_user
+    url: jdbc:mysql://backgom.iptime.org:43306/chatting
+    username: backgom
+    password: backgom
 
   jpa:
     hibernate:

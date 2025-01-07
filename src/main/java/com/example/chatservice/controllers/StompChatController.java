@@ -3,7 +3,9 @@ package com.example.chatservice.controllers;
 
 import com.example.chatservice.dtos.ChatMessages;
 import com.example.chatservice.dtos.ChatroomDto;
+import com.example.chatservice.entities.MemberChatroomMapping;
 import com.example.chatservice.entities.Message;
+import com.example.chatservice.enums.ChatroomType;
 import com.example.chatservice.services.ChatService;
 import com.example.chatservice.vos.CustomOAuth2User;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,6 @@ import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
 import java.util.Map;
-
 @Slf4j
 @Controller
 @RequiredArgsConstructor
@@ -36,14 +37,43 @@ public class StompChatController {
                                       @DestinationVariable Long chatroomId,
                                       @Payload Map<String, String> payload) {
 
-        log.info("{} sent {}", principal.getName(), payload, chatroomId);
+        log.info("{} sent {}", principal.getName(), payload);
 
         CustomOAuth2User user = (CustomOAuth2User) ((AbstractAuthenticationToken) principal).getPrincipal();
         Message message = chatService.saveMessage(user.getMember(), chatroomId, payload.get("message"));
-        ChatroomDto chatroomDto = chatService.getChatroom(chatroomId);
 
+        // 채팅방 정보 갱신
+        ChatroomDto chatroomDto = chatService.getChatroom(chatroomId);
         messagingTemplate.convertAndSend("/sub/chats/updates", chatroomDto);
 
-        return new ChatMessages(principal.getName(), payload.get("message"));
+        // 메시지 읽은 사람 수 계산
+        int readCount = chatService.getReadCount(message);
+
+        // 익명/실명 분기는 Controller와 동일 로직
+        ChatroomType type = chatroomDto.type();
+        String senderName = message.getMember().getNickName();
+        String profileImageUrl = message.getMember().getProfileImageUrl();
+
+        if (type == ChatroomType.ANONYMOUS) {
+            // 메시지 작성자에 해당하는 mapping 조회
+            MemberChatroomMapping mapping = message.getChatroom()
+                    .getMemberChatroomMappingSet()
+                    .stream()
+                    .filter(m -> m.getMember().getId().equals(message.getMember().getId()))
+                    .findFirst().orElse(null);
+
+            if (mapping != null) {
+                senderName = mapping.getAliasName();
+            }
+            profileImageUrl = "/images/anonymous.png";
+        }
+
+        return new ChatMessages(
+                senderName,
+                profileImageUrl,
+                message.getText(),
+                message.getCreatedAt(),
+                readCount
+        );
     }
 }

@@ -20,6 +20,4 @@ public enum Role {
                 .findFirst()
                 .orElseThrow();
     }
-
-
 }

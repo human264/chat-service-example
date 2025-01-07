@@ -57,8 +57,4 @@ public class ConsultantService implements UserDetailsService {
         Page<Chatroom> chatroomPage = chatroomRepository.findAll(pageable);
         return chatroomPage.map(ChatroomDto::from);
     }
-
-
-
-
 }

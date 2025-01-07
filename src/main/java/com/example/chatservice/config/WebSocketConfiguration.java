@@ -13,7 +13,6 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @RequiredArgsConstructor
 public class WebSocketConfiguration implements WebSocketConfigurer {
 
-
     private final WebSocketChatHandler webSocketChatHandler;
 
     @Override

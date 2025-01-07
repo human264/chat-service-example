@@ -1,55 +1,57 @@
 package com.example.chatservice.entities;
 
 
+import com.example.chatservice.enums.ChatroomType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
 public class Chatroom {
 
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "chatroom_id")
-    @Id
-    Long id;
+    private Long id;
 
-    String title;
+    private String title;
 
-    @OneToMany(mappedBy = "chatroom")
-    Set<MemberChatroomMapping> memberChatroomMappingSet;
+    private LocalDateTime createdAt;
 
-    LocalDateTime createdAt;
+    private Boolean hasNewMessage;  // 새 메시지가 있는지 여부
 
-    @Transient
-    Boolean hasNewMessage;
+    @Enumerated(EnumType.STRING)
+    private ChatroomType type;      // 1:1, 일반, 익명 등
 
-    public void setHasNewMessage(Boolean hasNewMessage) {
-        this.hasNewMessage = hasNewMessage;
-    }
+    // (mappedBy는 MemberChatroomMapping 쪽의 'chatroom' 필드와 동일해야 합니다.)
+    @OneToMany(mappedBy = "chatroom", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<MemberChatroomMapping> memberChatroomMappingSet = new HashSet<>();
 
+    // == 편의 메서드 ==
     public MemberChatroomMapping addMember(Member member) {
-        if(this.getMemberChatroomMappingSet() == null) {
-            this.memberChatroomMappingSet = new HashSet<>();
-        }
-
-        MemberChatroomMapping memberChatroomMapping = MemberChatroomMapping.builder()
-                .member(member)
+        MemberChatroomMapping mapping = MemberChatroomMapping.builder()
                 .chatroom(this)
+                .member(member)
                 .build();
 
-        this.memberChatroomMappingSet.add(memberChatroomMapping);
+        this.memberChatroomMappingSet.add(mapping);
+        return mapping;
+    }
 
-        return memberChatroomMapping;
+    public void removeMember(Member member) {
+        memberChatroomMappingSet.removeIf(m -> m.getMember().getId().equals(member.getId()));
+    }
+
+    public int getMemberCount() {
+        return this.memberChatroomMappingSet.size();
     }
 
 }
